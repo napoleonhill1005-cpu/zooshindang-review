@@ -30,7 +30,8 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           SLACK_CHANNEL: "#03_매장리뷰_현황"
           STORE_NAME: "주신당 강남점"
-          NAVER_STORE_ID: ${{ secrets.NAVER_STORE_ID }}
-          CATCHTABLE_STORE_ID: ${{ secrets.CATCHTABLE_STORE_ID }}
+          NAVER_STORE_ID: "10037388"
+          NAVER_PLACE_ID: "1916994932"
+          CATCHTABLE_STORE_ID: "64686"
           NAVER_COOKIE: ${{ secrets.NAVER_COOKIE }}
           CATCHTABLE_TOKEN: ${{ secrets.CATCHTABLE_TOKEN }}
