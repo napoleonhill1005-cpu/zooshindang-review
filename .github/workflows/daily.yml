@@ -2,7 +2,7 @@ name: daily-review-digest
 
 on:
   schedule:
-    - cron: "0 0 * * *"   # 매일 00:00 UTC = 09:00 KST
+    - cron: "0 23 * * *"  # 매일 23:00 UTC = 08:00 KST(익일)
   workflow_dispatch: {}    # 수동 실행 버튼
 
 jobs:
