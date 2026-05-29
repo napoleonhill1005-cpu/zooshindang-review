@@ -47,6 +47,7 @@ query getVisitorReviews($input: VisitorReviewsInput) {
       author { nickname }
       body
       created
+      media { thumbnail }
     }
     total
   }
@@ -133,7 +134,9 @@ def _to_review(it: dict) -> Review:
     rating = it.get("rating")
     text = it.get("body") or ""
     created_at = _parse_created(it.get("created") or "")
-    return Review("naver", review_id, author, rating, text, created_at, None)
+    media = it.get("media") or []
+    photo_url = media[0].get("thumbnail") if media else None
+    return Review("naver", review_id, author, rating, text, created_at, None, photo_url)
 
 
 def _mock() -> List[Review]:

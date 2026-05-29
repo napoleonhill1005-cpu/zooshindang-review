@@ -75,6 +75,8 @@ def build_blocks(reviews: List[Review], store_name: str, target_date: date) -> l
                 text = text[:300] + "…"
             body = f"_{r.author}_\n{text}" if text else f"_{r.author}_ (내용 없음)"
             blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": body}})
+            if r.photo_url:
+                blocks.append({"type": "image", "image_url": r.photo_url, "alt_text": f"{r.author} 사진"})
 
     # 캐치테이블 리뷰 목록
     if ct:
@@ -91,6 +93,8 @@ def build_blocks(reviews: List[Review], store_name: str, target_date: date) -> l
             prefix = f"{star} _{r.author}_" if star else f"_{r.author}_"
             body = f"{prefix}\n{text}" if text else f"{prefix} (내용 없음)"
             blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": body}})
+            if r.photo_url:
+                blocks.append({"type": "image", "image_url": r.photo_url, "alt_text": f"{r.author} 사진"})
 
     return blocks
 

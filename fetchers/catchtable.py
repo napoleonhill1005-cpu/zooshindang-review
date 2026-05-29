@@ -93,7 +93,7 @@ def _extract_items(data: dict) -> Tuple[list, bool]:
 
 
 def _to_review(it: dict) -> Review:
-    # 실제 필드: reviewSeq, userDisplayName, totalScore, content, regDateTime
+    # 실제 필드: reviewSeq, userDisplayName, totalScore, content, regDateTime, photos
     review_id = str(it.get("reviewSeq") or "")
     author = it.get("userDisplayName") or "익명"
     rating = it.get("totalScore")
@@ -104,7 +104,9 @@ def _to_review(it: dict) -> Review:
         if raw_date
         else datetime.now()
     )
-    return Review("catchtable", review_id, author, rating, text, created_at, None)
+    photos = it.get("photos") or []
+    photo_url = photos[0].get("reviewImgUrl") if photos else None
+    return Review("catchtable", review_id, author, rating, text, created_at, None, photo_url)
 
 
 def _mock() -> List[Review]:
