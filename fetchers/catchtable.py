@@ -75,19 +75,12 @@ def fetch_reviews(store_id: str) -> List[Review]:
 
 def _extract_items(data: dict) -> Tuple[list, bool]:
     """응답 JSON에서 리뷰 배열과 다음 페이지 존재 여부를 반환한다."""
-    # Spring Boot Page 형식: {"result": {"content": [...], "totalPages": N, "number": 0}}
-    for outer_key in ("result", "data", ""):
-        container = data.get(outer_key, data) if outer_key else data
-        if not isinstance(container, dict):
-            continue
-        for list_key in ("content", "reviews", "reviewList", "list"):
-            items = container.get(list_key)
-            if isinstance(items, list):
-                total_pages = int(container.get("totalPages", 1))
-                current = int(container.get("number", container.get("page", 0)))
-                return items, (current + 1 < total_pages)
+    # 실제 응답: {"items": [...], "totalPage": N, "currentPage": N, "totalCount": N}
+    if isinstance(data.get("items"), list):
+        total_pages = int(data.get("totalPage", 1))
+        current = int(data.get("currentPage", 0))
+        return data["items"], (current + 1 < total_pages)
 
-    # 최상위가 배열인 경우
     if isinstance(data, list):
         return data, False
 
@@ -100,25 +93,14 @@ def _extract_items(data: dict) -> Tuple[list, bool]:
 
 
 def _to_review(it: dict) -> Review:
-    review_id = str(
-        it.get("reviewSeq") or it.get("id") or it.get("reviewId") or ""
-    )
-    author = (
-        it.get("writerNickname")
-        or it.get("nickname")
-        or it.get("authorNickname")
-        or "익명"
-    )
-    rating = it.get("score") or it.get("rating") or it.get("starScore")
-    text = it.get("contents") or it.get("content") or it.get("reviewContents") or ""
-    raw_date = (
-        it.get("createdAt")
-        or it.get("registeredAt")
-        or it.get("createDate")
-        or ""
-    )
+    # 실제 필드: reviewSeq, userDisplayName, totalScore, content, regDateTime
+    review_id = str(it.get("reviewSeq") or "")
+    author = it.get("userDisplayName") or "익명"
+    rating = it.get("totalScore")
+    text = it.get("content") or ""
+    raw_date = it.get("regDateTime") or ""
     created_at = (
-        datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+        datetime.fromisoformat(raw_date).replace(tzinfo=None)
         if raw_date
         else datetime.now()
     )
