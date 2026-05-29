@@ -26,7 +26,7 @@ NAVER_STORE_ID = os.environ.get("NAVER_STORE_ID", "")
 CATCHTABLE_STORE_ID = os.environ.get("CATCHTABLE_STORE_ID", "")
 
 _KST = timezone(timedelta(hours=9))
-_WARN_DAYS = 20  # 만료 N일 전부터 경고 (테스트용, 원래값 3)
+_WARN_DAYS = 3  # 만료 N일 전부터 경고
 
 
 def _yesterday_kst() -> date:
