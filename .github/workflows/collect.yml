@@ -2,8 +2,13 @@ name: review-collect
 
 on:
   schedule:
-    - cron: "0 23 * * *"  # 매일 08:00 KST — 어제 리뷰 수집 → pending 저장
-  workflow_dispatch: {}
+    - cron: "0 23 * * *"  # 매일 08:00 KST — 리뷰 수집 → pending 저장
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Slack 미게시 테스트 모드 (체크하면 콘솔 출력만)'
+        type: boolean
+        default: false
 
 jobs:
   collect:
@@ -21,16 +26,18 @@ jobs:
         id: date
         run: echo "kst=$(TZ='Asia/Seoul' date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
-      # seen_reviews.db: 직전 실행 캐시 복원 후 이번 실행 결과로 저장
+      # seen_reviews.db: 직전 실행 캐시 복원 후 이번 결과로 저장
       - uses: actions/cache@v4
         with:
           path: seen_reviews.db
           key: review-seen-db-${{ github.run_id }}
           restore-keys: review-seen-db-
 
-      - run: python main.py collect
+      - name: 리뷰 수집
+        run: python main.py collect
         env:
           USE_MOCK: "0"
+          SLACK_DRY_RUN: ${{ inputs.dry_run == true && '1' || '0' }}
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           SLACK_CHANNEL: "#03_매장리뷰_현황"
           STORE_NAME: "주신당 강남점"
@@ -46,3 +53,10 @@ jobs:
         with:
           path: pending_reviews.json
           key: review-pending-${{ steps.date.outputs.kst }}
+
+      - name: 장애 알림
+        if: failure()
+        run: python alert.py "🚨 *review-collect 실패* — GitHub Actions 로그 확인 필요"
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL: "#03_매장리뷰_현황"

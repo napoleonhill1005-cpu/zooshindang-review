@@ -3,7 +3,12 @@ name: review-post
 on:
   schedule:
     - cron: "0 0 * * *"  # 매일 09:00 KST — pending 리뷰 Slack 게시
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Slack 미게시 테스트 모드 (체크하면 콘솔 출력만)'
+        type: boolean
+        default: false
 
 jobs:
   post:
@@ -28,8 +33,17 @@ jobs:
           key: review-pending-${{ steps.date.outputs.kst }}
           restore-keys: review-pending-
 
-      - run: python main.py post
+      - name: Slack 게시
+        run: python main.py post
         env:
+          SLACK_DRY_RUN: ${{ inputs.dry_run == true && '1' || '0' }}
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           SLACK_CHANNEL: "#03_매장리뷰_현황"
           STORE_NAME: "주신당 강남점"
+
+      - name: 장애 알림
+        if: failure()
+        run: python alert.py "🚨 *review-post 실패* — GitHub Actions 로그 확인 필요"
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL: "#03_매장리뷰_현황"
