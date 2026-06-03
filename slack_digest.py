@@ -104,12 +104,12 @@ def _chunk(blocks, size):
         yield blocks[i:i + size]
 
 
-def _send(blocks) -> str:
+def _send(blocks, text: str = "") -> str:
     if not SLACK_TOKEN:
         print("[dry-run] SLACK_TOKEN 미설정 — 콘솔 출력:")
         print(json.dumps({"blocks": blocks}, ensure_ascii=False, indent=2))
         return "dry-run"
-    payload = json.dumps({"channel": SLACK_CHANNEL, "blocks": blocks}).encode("utf-8")
+    payload = json.dumps({"channel": SLACK_CHANNEL, "blocks": blocks, "text": text}).encode("utf-8")
     req = urllib.request.Request(
         "https://slack.com/api/chat.postMessage",
         data=payload,
@@ -127,5 +127,6 @@ def _send(blocks) -> str:
 
 def post(reviews: List[Review], store_name: str, target_date: date) -> str:
     blocks = build_blocks(reviews, store_name, target_date)
-    statuses = [_send(chunk) for chunk in _chunk(blocks, MAX_BLOCKS_PER_MSG)]
+    text = f"{_fmt_date(target_date)} 리뷰현황"
+    statuses = [_send(chunk, text) for chunk in _chunk(blocks, MAX_BLOCKS_PER_MSG)]
     return ",".join(statuses)
