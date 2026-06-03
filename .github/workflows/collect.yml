@@ -1,0 +1,48 @@
+name: review-collect
+
+on:
+  schedule:
+    - cron: "0 23 * * *"  # 매일 08:00 KST — 어제 리뷰 수집 → pending 저장
+  workflow_dispatch: {}
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: KST 날짜 계산
+        id: date
+        run: echo "kst=$(TZ='Asia/Seoul' date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      # seen_reviews.db: 직전 실행 캐시 복원 후 이번 실행 결과로 저장
+      - uses: actions/cache@v4
+        with:
+          path: seen_reviews.db
+          key: review-seen-db-${{ github.run_id }}
+          restore-keys: review-seen-db-
+
+      - run: python main.py collect
+        env:
+          USE_MOCK: "0"
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL: "#03_매장리뷰_현황"
+          STORE_NAME: "주신당 강남점"
+          NAVER_STORE_ID: "10037388"
+          NAVER_PLACE_ID: "1916994932"
+          CATCHTABLE_STORE_ID: "64686"
+          NAVER_COOKIE: ${{ secrets.NAVER_COOKIE }}
+          CATCHTABLE_TOKEN: ${{ secrets.CATCHTABLE_TOKEN }}
+
+      # pending_reviews.json: post 워크플로우와 날짜 키로 공유
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: pending_reviews.json
+          key: review-pending-${{ steps.date.outputs.kst }}

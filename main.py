@@ -1,4 +1,9 @@
-"""매일 1회 실행: 리뷰 수집 → 중복제거 → 어제 리뷰 슬랙 게시.
+"""리뷰봇 진입점.
+
+실행 모드 (인수로 전달):
+  collect  매일 00:00 KST — API에서 신규 리뷰 수집 → seen DB 기록 → pending 저장
+  post     매일 09:00 KST — pending 불러와 Slack 게시 → pending 삭제
+  (없음)   로컬 테스트용: collect + post 즉시 순차 실행
 
 환경변수:
   USE_MOCK            "1"이면 mock 데이터 사용(기본), "0"이면 실제 수집기 호출
@@ -12,12 +17,14 @@
 import base64
 import json
 import os
+import sys
 import time
 import traceback
 import urllib.request
 from datetime import datetime, timedelta, timezone, date
 
 import store
+import pending
 import slack_digest
 from fetchers import naver, catchtable
 
@@ -26,7 +33,7 @@ NAVER_STORE_ID = os.environ.get("NAVER_STORE_ID", "")
 CATCHTABLE_STORE_ID = os.environ.get("CATCHTABLE_STORE_ID", "")
 
 _KST = timezone(timedelta(hours=9))
-_WARN_DAYS = 3  # 만료 N일 전부터 경고
+_WARN_DAYS = 3
 
 
 def _yesterday_kst() -> date:
@@ -34,7 +41,6 @@ def _yesterday_kst() -> date:
 
 
 def _send_slack_alert(text: str):
-    """긴급 알림용 단순 텍스트 메시지 전송."""
     token = os.environ.get("SLACK_TOKEN", "")
     channel = os.environ.get("SLACK_CHANNEL", "#03_매장리뷰_현황")
     if not token:
@@ -50,8 +56,6 @@ def _send_slack_alert(text: str):
 
 
 def _check_auth_expiry():
-    """인증 만료 임박 시 슬랙 경고."""
-    # CatchTable JWT 만료 체크
     ct_token = os.environ.get("CATCHTABLE_TOKEN", "")
     if ct_token:
         try:
@@ -76,7 +80,6 @@ def _check_auth_expiry():
         except Exception:
             pass
 
-    # Naver 쿠키 — 테스트 요청으로 유효성 확인
     naver_cookie = os.environ.get("NAVER_COOKIE", "")
     if naver_cookie:
         try:
@@ -109,7 +112,8 @@ def _safe(fetch, store_id, label):
         return []
 
 
-def run():
+def collect():
+    """00:00 KST: 신규 리뷰 수집 → seen DB 기록 → pending 저장 (Slack 미게시)."""
     _check_auth_expiry()
 
     collected = []
@@ -118,17 +122,43 @@ def run():
 
     new_reviews = store.filter_new(collected)
     new_reviews.sort(key=lambda r: r.created_at)
+
+    # 기존 pending에 누적 (봇이 여러 번 실행돼도 중복 없이 합산)
+    existing = {(r.platform, r.review_id) for r in pending.load()}
+    truly_new = [r for r in new_reviews if (r.platform, r.review_id) not in existing]
+
     store.mark_seen(new_reviews)
+    pending.save(pending.load() + truly_new)
 
+    print(f"[collect] 수집 {len(collected)}건 / 신규 {len(truly_new)}건 pending 추가")
+
+
+def post():
+    """09:00 KST: pending 리뷰를 Slack에 게시 후 삭제."""
+    reviews = pending.load()
     yesterday = _yesterday_kst()
-    todays_reviews = [r for r in new_reviews if r.created_at.date() == yesterday]
 
-    status = slack_digest.post(todays_reviews, STORE_NAME, yesterday)
-    print(
-        f"[done] 수집 {len(collected)}건 / 신규 {len(new_reviews)}건 "
-        f"/ 어제({yesterday}) {len(todays_reviews)}건 / slack={status}"
-    )
+    if not reviews:
+        print(f"[post] pending 없음 — {yesterday} 리뷰 0건")
+        slack_digest.post([], STORE_NAME, yesterday)
+        return
+
+    status = slack_digest.post(reviews, STORE_NAME, yesterday)
+    pending.clear()
+    print(f"[post] {len(reviews)}건 게시 / slack={status}")
+
+
+def run():
+    """로컬 테스트용: collect + post 즉시 순차 실행."""
+    collect()
+    post()
 
 
 if __name__ == "__main__":
-    run()
+    mode = sys.argv[1] if len(sys.argv) > 1 else "run"
+    if mode == "collect":
+        collect()
+    elif mode == "post":
+        post()
+    else:
+        run()

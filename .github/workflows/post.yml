@@ -1,0 +1,35 @@
+name: review-post
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # 매일 09:00 KST — pending 리뷰 Slack 게시
+  workflow_dispatch: {}
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: KST 날짜 계산
+        id: date
+        run: echo "kst=$(TZ='Asia/Seoul' date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      # collect 워크플로우가 저장한 pending 캐시 복원 (같은 날짜 키)
+      - uses: actions/cache/restore@v4
+        with:
+          path: pending_reviews.json
+          key: review-pending-${{ steps.date.outputs.kst }}
+          restore-keys: review-pending-
+
+      - run: python main.py post
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL: "#03_매장리뷰_현황"
+          STORE_NAME: "주신당 강남점"
