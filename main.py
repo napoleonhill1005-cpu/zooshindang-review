@@ -38,9 +38,33 @@ _DRY_RUN = os.environ.get("SLACK_DRY_RUN", "0") == "1"
 _KST = timezone(timedelta(hours=9))
 _WARN_DAYS = 3
 
+# 영업일 기준: 당일 10:00 KST ~ 익일 03:00 KST (17시간)
+_BIZ_START_HOUR = 10
+_BIZ_END_HOUR = 3  # 익일 03:00
 
-def _yesterday_kst() -> date:
+
+def _biz_day_range(biz_date: date):
+    """영업일 날짜 → (시작 datetime, 종료 datetime) 반환. 모두 naive KST."""
+    start = datetime(biz_date.year, biz_date.month, biz_date.day, _BIZ_START_HOUR, 0)
+    end = start + timedelta(hours=17)  # 10:00 + 17h = 익일 03:00
+    return start, end
+
+
+def _prev_biz_date() -> date:
+    """08:00 KST 실행 기준 — 직전 영업일 날짜 반환.
+    08:00는 당일 영업일(10:00 시작) 이전이므로 항상 전날이 직전 영업일."""
     return (datetime.now(_KST) - timedelta(days=1)).date()
+
+
+def _in_biz_day(r, biz_date: date) -> bool:
+    """리뷰가 해당 영업일 범위 안에 있는지 판단.
+    - 네이버: 날짜 정보만 있으므로 날짜 일치 비교
+    - 캐치테이블: ISO 시간 포함 → 영업일 시간 범위로 비교
+    """
+    if r.platform == "naver":
+        return r.created_at.date() == biz_date
+    start, end = _biz_day_range(biz_date)
+    return start <= r.created_at < end
 
 
 def _send_slack_alert(text: str):
@@ -146,43 +170,43 @@ def collect():
     # 전체 신규 리뷰를 seen 처리 → DB 유실 시에도 과거 리뷰 재출현 방지
     store.mark_seen(new_reviews)
 
-    # pending에는 어제 리뷰만 저장
-    yesterday = _yesterday_kst()
-    yesterday_reviews = sorted(
-        [r for r in new_reviews if r.created_at.date() == yesterday],
+    # pending에는 직전 영업일(10:00~익일03:00) 리뷰만 저장
+    biz_date = _prev_biz_date()
+    biz_reviews = sorted(
+        [r for r in new_reviews if _in_biz_day(r, biz_date)],
         key=lambda r: r.created_at,
     )
 
     existing = {(r.platform, r.review_id) for r in pending.load()}
-    truly_new = [r for r in yesterday_reviews if (r.platform, r.review_id) not in existing]
+    truly_new = [r for r in biz_reviews if (r.platform, r.review_id) not in existing]
     pending.save(pending.load() + truly_new)
 
     n_cnt = len([r for r in truly_new if r.platform == "naver"])
     ct_cnt = len([r for r in truly_new if r.platform == "catchtable"])
+    biz_start, biz_end = _biz_day_range(biz_date)
     print(f"[collect] 수집 {len(collected)}건 / 전체신규 {len(new_reviews)}건 "
-          f"/ 어제({yesterday}) pending추가 {len(truly_new)}건 "
-          f"(네이버 {n_cnt}건, 캐치테이블 {ct_cnt}건)"
+          f"/ 영업일({biz_date} {biz_start:%H:%M}~{biz_end:%m/%d %H:%M}) "
+          f"pending {len(truly_new)}건 (네이버 {n_cnt}건, 캐치테이블 {ct_cnt}건)"
           + (" [DRY-RUN]" if _DRY_RUN else ""))
 
 
 def post():
     """09:00 KST: pending 리뷰를 Slack에 게시 후 삭제."""
     reviews = pending.load()
-    yesterday = _yesterday_kst()
+    biz_date = _prev_biz_date()  # 헤더에 표시할 영업일 날짜
 
     if not reviews:
-        # dry-run이 아닌 정규 실행인데 pending이 없으면 collect 단계 이상 의심
         if not _DRY_RUN:
             _send_slack_alert(
-                f"⚠️ *리뷰봇 — {yesterday} pending 없음*\n"
+                f"⚠️ *리뷰봇 — {biz_date} 영업일 pending 없음*\n"
                 "collect 단계 실패 또는 신규 리뷰 0건.\n"
                 "GitHub Actions `review-collect` 로그를 확인하세요."
             )
-        print(f"[post] pending 없음 — {yesterday} 리뷰 0건"
+        print(f"[post] pending 없음 — {biz_date} 영업일 리뷰 0건"
               + (" [DRY-RUN]" if _DRY_RUN else ""))
         return
 
-    status = slack_digest.post(reviews, STORE_NAME, yesterday)
+    status = slack_digest.post(reviews, STORE_NAME, biz_date)
     if not _DRY_RUN:
         pending.clear()
     print(f"[post] {len(reviews)}건 게시 / slack={status}"
