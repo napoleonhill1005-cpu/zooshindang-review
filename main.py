@@ -37,7 +37,6 @@ _DRY_RUN = os.environ.get("SLACK_DRY_RUN", "0") == "1"
 
 _KST = timezone(timedelta(hours=9))
 _WARN_DAYS = 3
-_CATCHUP_DAYS = 7  # seen DB 유실 시 재게시 범위 제한 (일)
 
 
 def _yesterday_kst() -> date:
@@ -143,20 +142,26 @@ def collect():
             )
 
     new_reviews = store.filter_new(collected)
-    new_reviews.sort(key=lambda r: r.created_at)
 
-    # seen DB 유실 시 오래된 리뷰 대량 재게시 방지: 최근 N일치만 pending에 추가
-    cutoff = datetime.now() - timedelta(days=_CATCHUP_DAYS)
-    new_reviews = [r for r in new_reviews if r.created_at >= cutoff]
-
-    # 기존 pending에 누적 (봇이 여러 번 실행돼도 중복 없이 합산)
-    existing = {(r.platform, r.review_id) for r in pending.load()}
-    truly_new = [r for r in new_reviews if (r.platform, r.review_id) not in existing]
-
+    # 전체 신규 리뷰를 seen 처리 → DB 유실 시에도 과거 리뷰 재출현 방지
     store.mark_seen(new_reviews)
+
+    # pending에는 어제 리뷰만 저장
+    yesterday = _yesterday_kst()
+    yesterday_reviews = sorted(
+        [r for r in new_reviews if r.created_at.date() == yesterday],
+        key=lambda r: r.created_at,
+    )
+
+    existing = {(r.platform, r.review_id) for r in pending.load()}
+    truly_new = [r for r in yesterday_reviews if (r.platform, r.review_id) not in existing]
     pending.save(pending.load() + truly_new)
 
-    print(f"[collect] 수집 {len(collected)}건 / 신규 {len(truly_new)}건 pending 추가"
+    n_cnt = len([r for r in truly_new if r.platform == "naver"])
+    ct_cnt = len([r for r in truly_new if r.platform == "catchtable"])
+    print(f"[collect] 수집 {len(collected)}건 / 전체신규 {len(new_reviews)}건 "
+          f"/ 어제({yesterday}) pending추가 {len(truly_new)}건 "
+          f"(네이버 {n_cnt}건, 캐치테이블 {ct_cnt}건)"
           + (" [DRY-RUN]" if _DRY_RUN else ""))
 
 
