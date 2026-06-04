@@ -24,6 +24,13 @@ import traceback
 import urllib.request
 from datetime import datetime, timedelta, timezone, date
 
+# .env 파일 로드 (로컬 실행 시 환경변수 자동 주입, GitHub Actions는 시크릿으로 주입)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 import store
 import pending
 import slack_digest
