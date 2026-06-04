@@ -1,8 +1,8 @@
 name: review-collect
 
 on:
-  schedule:
-    - cron: "45 23 * * *"  # 매일 08:45 KST — 리뷰 수집 → pending 저장
+  # GAS(Google Apps Script)가 매일 08:45 KST에 workflow_dispatch로 트리거
+  # GitHub Actions cron은 불안정하여 제거 — GAS가 방아쇠 역할
   workflow_dispatch:
     inputs:
       dry_run:
