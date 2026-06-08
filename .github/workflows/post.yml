@@ -5,9 +5,6 @@ on:
   workflow_run:
     workflows: ["review-collect"]
     types: [completed]
-  # 백업 cron: collect가 드랍됐을 경우 9:55 KST에 한 번 더 시도
-  schedule:
-    - cron: "55 0 * * *"  # 매일 09:55 KST — 백업 게시
   workflow_dispatch:
     inputs:
       dry_run:
@@ -18,10 +15,9 @@ on:
 jobs:
   post:
     # workflow_run 트리거: collect가 성공한 경우만 실행
-    # schedule/workflow_dispatch: 항상 실행
+    # workflow_dispatch: 항상 실행
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
