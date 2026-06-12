@@ -56,6 +56,12 @@ jobs:
           CATCHTABLE_STORE_ID: "64686"
           NAVER_COOKIE: ${{ secrets.NAVER_COOKIE }}
           CATCHTABLE_TOKEN: ${{ secrets.CATCHTABLE_TOKEN }}
+          # 구글 — docs/GOOGLE_SETUP.md 설정 후 ID 2개를 채울 것 (빈 값이면 수집 스킵)
+          GOOGLE_ACCOUNT_ID: ""
+          GOOGLE_LOCATION_ID: ""
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
 
       # pending_reviews.json: post 워크플로우와 날짜 키로 공유
       - uses: actions/cache/save@v4

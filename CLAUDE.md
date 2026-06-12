@@ -1,13 +1,16 @@
 # CLAUDE.md — 프로젝트 컨텍스트 / 인계 문서
 
 ## 이 프로젝트가 하는 일
-네이버 스마트플레이스 + 캐치테이블의 매장 리뷰를 **매일 아침 9시(KST)**에 모아
-슬랙 채널에 다이제스트로 게시하는 봇. 현재 대상 매장은 **주신당 강남점** 1곳.
-운영자는 두 플랫폼 모두 **사장님(관리자) 권한**을 보유.
+네이버 스마트플레이스 + 캐치테이블 + 구글 비즈니스 프로필의 매장 리뷰를
+**매일 아침 9시(KST)**에 모아 슬랙 채널에 다이제스트로 게시하는 봇.
+현재 대상 매장은 **주신당 강남점** 1곳.
+운영자는 세 플랫폼 모두 **사장님(관리자) 권한**을 보유.
 
 ## 핵심 설계 결정 (바꾸지 말 것)
-- 두 플랫폼 다 **공개 리뷰 API가 없다.** HTML 스크래핑 대신, 사장님 관리자 페이지가
-  내부적으로 호출하는 **JSON 요청을 캡처해 재사용**한다. (안정성이 훨씬 높음)
+- 네이버/캐치테이블은 **공개 리뷰 API가 없다.** HTML 스크래핑 대신, 사장님 관리자
+  페이지가 내부적으로 호출하는 **JSON 요청을 캡처해 재사용**한다. (안정성이 훨씬 높음)
+- 구글만 예외 — **공식 API**(Business Profile API)를 OAuth refresh token으로 호출.
+  설정 절차는 `docs/GOOGLE_SETUP.md`.
 - 중복제거는 **리뷰 ID 기준**(시간 윈도우 X). `store.py`의 SQLite가 담당.
   → '전날 + 새벽 리뷰'가 정확히 한 번씩만 게시됨. 이 방식을 유지할 것.
 - 모든 수집기는 `models.Review` dataclass로 정규화해서 반환한다.
@@ -19,18 +22,17 @@
 | `store.py` (SQLite ID 기반 중복제거) | ✅ 완성 |
 | `main.py` (수집→중복제거→게시 오케스트레이션) | ✅ 완성 |
 | `.github/workflows/daily.yml` (09:00 KST 스케줄) | ✅ 완성 |
-| `fetchers/naver.py` | ⛔ **TODO** — mock만 있음, 실제 엔드포인트 미구현 |
-| `fetchers/catchtable.py` | ⛔ **TODO** — mock만 있음, 실제 엔드포인트 미구현 |
+| `fetchers/naver.py` | ✅ 완성 (pcmap GraphQL, NAVER_COOKIE 인증) |
+| `fetchers/catchtable.py` | ✅ 완성 (manager-api, CATCHTABLE_TOKEN 인증) |
+| `fetchers/google.py` | ✅ 코드 완성 — ⚠️ **GCP 설정 대기** (`docs/GOOGLE_SETUP.md` 절차 필요, 미설정 시 자동 스킵) |
 
 `USE_MOCK=1 python main.py` 로 mock 데이터 전체 파이프라인은 이미 정상 동작 확인됨.
 
 ## 지금 해야 할 일 (우선순위 순)
-1. **수집기 실구현**: 사용자가 크롬 DevTools에서 캡처한 cURL(리뷰 JSON 요청)을 줄 것이다.
-   그걸 `fetchers/naver.py` / `fetchers/catchtable.py`의 `fetch_reviews()`에 맞게 변환.
-   - URL/메서드/바디는 코드에, **Cookie 등 비밀값은 환경변수**(`NAVER_COOKIE`,
-     `CATCHTABLE_COOKIE`)로 분리. 코드에 하드코딩 금지.
-   - 응답 JSON 구조에 맞춰 `Review` 필드 매핑 (별점 없으면 `rating=None`).
-   - 변환 후 `USE_MOCK=0`으로 실제 1건이라도 떨어지는지 확인.
+1. **구글 리뷰 활성화**: 코드는 완성. 운영자가 `docs/GOOGLE_SETUP.md` 절차로
+   GCP 설정 → Secrets(`GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN`) 등록 →
+   `collect.yml`의 `GOOGLE_ACCOUNT_ID`/`GOOGLE_LOCATION_ID` 기입.
+   설정 전까지는 구글 수집이 자동 스킵되어 기존 동작에 영향 없음.
 2. (옵션) 쿠키 만료 대응: Playwright `storage_state`로 로그인 세션 저장/자동 갱신.
 3. (옵션) 매장 다중화: `STORE_*` 환경변수를 매장별로 분리, 채널/스레드 분기.
 
