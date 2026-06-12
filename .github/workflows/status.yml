@@ -1,0 +1,35 @@
+name: review-status
+
+on:
+  # 슬랙 리뷰 채널에서 "현황" 입력 시 GAS가 workflow_dispatch로 호출
+  workflow_dispatch:
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: 오늘 리뷰 현황 집계 + Slack 게시
+        run: python status.py
+        env:
+          USE_MOCK: "0"
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL: "#03_매장리뷰_현황"
+          NAVER_PLACE_ID: "1916994932"
+          CATCHTABLE_STORE_ID: "64686"
+          NAVER_COOKIE: ${{ secrets.NAVER_COOKIE }}
+          CATCHTABLE_TOKEN: ${{ secrets.CATCHTABLE_TOKEN }}
+
+      - name: 장애 알림
+        if: failure()
+        run: python alert.py "🚨 *review-status 실패* — GitHub Actions 로그 확인 필요"
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL: "#03_매장리뷰_현황"
