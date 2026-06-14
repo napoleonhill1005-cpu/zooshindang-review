@@ -1,0 +1,22 @@
+name: catchtable-token-diag
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: 캐치테이블 토큰 진단 (토큰값 비노출)
+        run: python diag_catchtable.py
+        env:
+          CATCHTABLE_TOKEN: ${{ secrets.CATCHTABLE_TOKEN }}
+          CATCHTABLE_STORE_ID: "64686"
