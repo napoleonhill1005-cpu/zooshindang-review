@@ -59,7 +59,7 @@ def fetch_reviews(store_id: str) -> List[Review]:
     if USE_MOCK:
         return _mock()
 
-    cookie = os.environ.get("NAVER_COOKIE", "")
+    cookie = os.environ.get("NAVER_COOKIE", "").strip()
     place_id = os.environ.get("NAVER_PLACE_ID", _DEFAULT_PLACE_ID)
 
     session = requests.Session()

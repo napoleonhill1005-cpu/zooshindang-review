@@ -42,7 +42,11 @@ def fetch_reviews(store_id: str) -> List[Review]:
     if USE_MOCK:
         return _mock()
 
-    token = os.environ["CATCHTABLE_TOKEN"]
+    # 시크릿에 줄바꿈/공백이 섞이거나 실수로 'Bearer ' 접두어를 같이 넣어도
+    # HTTP 헤더가 깨지지 않도록 방어적으로 정리한다.
+    token = os.environ["CATCHTABLE_TOKEN"].strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
     shop_seq = store_id or os.environ.get("CATCHTABLE_STORE_ID", _DEFAULT_SHOP_SEQ)
 
     session = requests.Session()
