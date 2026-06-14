@@ -1,0 +1,24 @@
+name: status-diag
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: status.py 실행 (Slack 미게시, 실패 플랫폼/원인 로그 출력)
+        run: python status.py
+        env:
+          USE_MOCK: "0"
+          SLACK_DRY_RUN: "1"
+          NAVER_PLACE_ID: "1916994932"
+          CATCHTABLE_STORE_ID: "64686"
+          NAVER_COOKIE: ${{ secrets.NAVER_COOKIE }}
+          CATCHTABLE_TOKEN: ${{ secrets.CATCHTABLE_TOKEN }}
