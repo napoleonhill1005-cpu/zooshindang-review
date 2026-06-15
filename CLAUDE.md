@@ -21,6 +21,17 @@
 | `.github/workflows/daily.yml` (09:00 KST 스케줄) | ✅ 완성 |
 | `fetchers/naver.py` | ⛔ **TODO** — mock만 있음, 실제 엔드포인트 미구현 |
 | `fetchers/catchtable.py` | ⛔ **TODO** — mock만 있음, 실제 엔드포인트 미구현 |
+| `schedule_board.py` + `.github/workflows/schedule.yml` (근무표 알림) | ✅ 완성 |
+
+### 근무 스케줄 알림 (`schedule_board.py`)
+- 구글 시트(주차별 근무표)를 **실시간 CSV로 읽어** 슬랙에 게시. 근무자를 코드에 박지 않음
+  → **매주 시트만 갱신하면 자동 반영**. (시트 = 진실의 원천)
+- ⚠️ 시트는 반드시 **"링크가 있는 모든 사용자 - 뷰어"** 공유여야 함 (Actions 러너엔 구글 로그인 없음).
+- 기존 "현황"(status.py)과 동일 패턴: 슬랙 입력 → **GAS가 `schedule.yml` workflow_dispatch 호출**.
+  - query 빈값 → 오늘(영업일 기준, 새벽 5시 전이면 전날) 근무표
+  - query=이름(예 `오시환`) → 그 직원 주간 근무 / query=요일(예 `금`) → 그 요일 근무표
+- 시트 ID는 `schedule_board.py`의 `DEFAULT_SHEET_ID`(또는 `SCHEDULE_SHEET_ID` 환경변수).
+- 로컬 검증: `SCHEDULE_CSV_FILE=tests/schedule_fixture.csv SLACK_DRY_RUN=1 python schedule_board.py`
 
 `USE_MOCK=1 python main.py` 로 mock 데이터 전체 파이프라인은 이미 정상 동작 확인됨.
 
