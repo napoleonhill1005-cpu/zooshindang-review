@@ -107,14 +107,14 @@ def _check_auth_expiry():
 
             if days_left <= 0:
                 _send_slack_alert(
-                    f"🚨 *CATCHTABLE_TOKEN 만료됨* ({exp_date})\n"
-                    "캐치테이블 리뷰 수집이 중단됐습니다.\n"
-                    "DevTools에서 cURL 재캡처 후 GitHub Secret `CATCHTABLE_TOKEN` 업데이트 필요"
+                    f"🚨 *[진짜 만료] CATCHTABLE_TOKEN 만료됨* (만료일 {exp_date})\n"
+                    "→ 캐치테이블 리뷰 수집이 *실제로 중단*된 상태입니다.\n"
+                    "→ 관리자 페이지 새로고침으로 토큰 재캡처 후 `CATCHTABLE_TOKEN` 갱신이 *반드시* 필요합니다."
                 )
             elif days_left <= _WARN_DAYS:
                 _send_slack_alert(
-                    f"⚠️ *CATCHTABLE_TOKEN {int(days_left)}일 후 만료* ({exp_date})\n"
-                    "DevTools에서 cURL 재캡처 후 GitHub Secret `CATCHTABLE_TOKEN` 업데이트 해주세요"
+                    f"⏰ *[만료 임박] CATCHTABLE_TOKEN {int(days_left)}일 후 만료* (만료일 {exp_date})\n"
+                    "→ 아직 수집은 정상입니다. 만료 전에 미리 토큰을 갱신해 두세요."
                 )
         except Exception:
             pass
@@ -163,13 +163,15 @@ def collect():
     if not _USE_MOCK:
         if os.environ.get("NAVER_COOKIE") and len(naver_reviews) == 0:
             _send_slack_alert(
-                "⚠️ *네이버 리뷰 수집 0건*\n"
-                "NAVER_COOKIE 만료 또는 API 변경 의심. GitHub Actions 로그 확인 필요."
+                "ℹ️ *네이버 수집 결과 0건* (이건 만료 알림이 *아닙니다*)\n"
+                "→ 보통은 그냥 새 리뷰가 없었던 날입니다. 만료라면 위에 🚨 알림이 따로 떴을 거예요.\n"
+                "→ 며칠 연속 0건이면 그때만 GitHub Actions 로그를 확인하세요."
             )
         if os.environ.get("CATCHTABLE_TOKEN") and len(ct_reviews) == 0:
             _send_slack_alert(
-                "⚠️ *캐치테이블 리뷰 수집 0건*\n"
-                "CATCHTABLE_TOKEN 만료 또는 API 변경 의심. GitHub Actions 로그 확인 필요."
+                "ℹ️ *캐치테이블 수집 결과 0건* (이건 만료 알림이 *아닙니다*)\n"
+                "→ 보통은 그냥 새 리뷰가 없었던 날입니다. 만료라면 위에 🚨 알림이 따로 떴을 거예요.\n"
+                "→ 며칠 연속 0건이면 그때만 GitHub Actions 로그를 확인하세요."
             )
 
     new_reviews = store.filter_new(collected)
