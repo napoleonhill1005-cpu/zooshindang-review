@@ -1,0 +1,32 @@
+name: review-watchdog
+
+# 목적: 매일 collect/post 워크플로우가 실제로 돌았는지 독립 점검.
+# GAS(08:45 KST) dispatch가 죽은 PAT 등으로 실패해 워크플로우가 아예 트리거조차
+# 안 되는 '조용한 실패'를 잡는다. cron 자체 트리거라 GAS/dispatch 경로와 무관하게 돈다.
+# post는 09:00 KST쯤 게시 → 재시도 여유 두고 11:00 KST(02:00 UTC)에 점검.
+on:
+  schedule:
+    - cron: "0 2 * * *"   # 11:00 KST
+  workflow_dispatch:       # 수동 점검용
+
+permissions:
+  actions: read            # 다른 워크플로우 run 이력 조회
+  contents: read
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 리뷰봇 상태 점검 + 슬랙 보고
+        run: python watchdog.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL: "#03_매장리뷰_현황"
+          WATCHDOG_SLACK_TARGET: "U0B67DXNP8C"   # 석지현
