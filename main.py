@@ -105,6 +105,9 @@ def _check_auth_expiry():
             days_left = (exp - time.time()) / 86400
             exp_date = datetime.fromtimestamp(exp, _KST).strftime("%Y-%m-%d")
 
+            # 경고 여부와 무관하게 항상 출력 — 라이브 토큰 만료일 상시 확인용
+            print(f"[token] catchtable exp={exp_date} days_left={days_left:.1f}")
+
             if days_left <= 0:
                 _send_slack_alert(
                     f"🚨 *[진짜 만료] CATCHTABLE_TOKEN 만료됨* (만료일 {exp_date})\n"

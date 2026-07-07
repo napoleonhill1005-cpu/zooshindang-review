@@ -9,6 +9,15 @@ on:
         description: 'Slack 미게시 테스트 모드 (체크하면 콘솔 출력만)'
         type: boolean
         default: false
+      # GAS가 Script Property의 토큰을 주입 (비우면 아래 env가 Secret으로 폴백)
+      catchtable_token:
+        description: '캐치테이블 토큰 (GAS 주입용, 수동 실행 시 비워두면 Secret 사용)'
+        required: false
+        default: ''
+      naver_cookie:
+        description: '네이버 쿠키 (GAS 주입용, 비우면 Secret 사용)'
+        required: false
+        default: ''
 
 jobs:
   collect:
@@ -21,6 +30,15 @@ jobs:
           python-version: "3.12"
 
       - run: pip install -r requirements.txt
+
+      # 주입된 토큰이 이후 로그에 노출되지 않도록 마스킹
+      - name: 주입 토큰 마스킹
+        run: |
+          [ -n "$CT" ] && echo "::add-mask::$CT" || true
+          [ -n "$NV" ] && echo "::add-mask::$NV" || true
+        env:
+          CT: ${{ inputs.catchtable_token }}
+          NV: ${{ inputs.naver_cookie }}
 
       - name: KST 날짜 계산
         id: date
@@ -54,8 +72,8 @@ jobs:
           NAVER_STORE_ID: "10037388"
           NAVER_PLACE_ID: "1916994932"
           CATCHTABLE_STORE_ID: "64686"
-          NAVER_COOKIE: ${{ secrets.NAVER_COOKIE }}
-          CATCHTABLE_TOKEN: ${{ secrets.CATCHTABLE_TOKEN }}
+          NAVER_COOKIE: ${{ inputs.naver_cookie != '' && inputs.naver_cookie || secrets.NAVER_COOKIE }}
+          CATCHTABLE_TOKEN: ${{ inputs.catchtable_token != '' && inputs.catchtable_token || secrets.CATCHTABLE_TOKEN }}
 
       # pending_reviews.json: post 워크플로우와 날짜 키로 공유
       - uses: actions/cache/save@v4
