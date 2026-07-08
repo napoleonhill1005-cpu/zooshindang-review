@@ -1,5 +1,6 @@
 .env
 seen_reviews.db
+pending_reviews.json
 __pycache__/
 *.pyc
 log.txt
