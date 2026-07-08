@@ -13,7 +13,9 @@
   STORE_NAME          매장 표시 이름
   NAVER_PLACE_ID      네이버 pcmap place ID
   CATCHTABLE_STORE_ID 캐치테이블 매장 ID
+  GOOGLE_LOCATION_ID  구글 비즈니스 프로필 매장 ID
   NAVER_COOKIE / CATCHTABLE_TOKEN  실제 수집 시 인증값
+  GOOGLE_COOKIE (F12 캡처) 또는 GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN (공식 API)  구글 인증
 """
 import base64
 import json
@@ -34,11 +36,12 @@ except ImportError:
 import store
 import pending
 import slack_digest
-from fetchers import naver, catchtable
+from fetchers import naver, catchtable, google
 
 STORE_NAME = os.environ.get("STORE_NAME", "주신당 강남점")
 NAVER_STORE_ID = os.environ.get("NAVER_STORE_ID", "")
 CATCHTABLE_STORE_ID = os.environ.get("CATCHTABLE_STORE_ID", "")
+GOOGLE_LOCATION_ID = os.environ.get("GOOGLE_LOCATION_ID", "")
 _USE_MOCK = os.environ.get("USE_MOCK", "1") == "1"
 _DRY_RUN = os.environ.get("SLACK_DRY_RUN", "0") == "1"
 
@@ -66,7 +69,7 @@ def _prev_biz_date() -> date:
 def _in_biz_day(r, biz_date: date) -> bool:
     """리뷰가 해당 영업일 범위 안에 있는지 판단.
     - 네이버: 날짜 정보만 있으므로 날짜 일치 비교
-    - 캐치테이블: ISO 시간 포함 → 영업일 시간 범위로 비교
+    - 캐치테이블/구글: ISO 시간 포함 → 영업일 시간 범위로 비교
     """
     if r.platform == "naver":
         return r.created_at.date() == biz_date
@@ -160,7 +163,8 @@ def collect():
 
     naver_reviews = _safe(naver.fetch_reviews, NAVER_STORE_ID, "네이버")
     ct_reviews = _safe(catchtable.fetch_reviews, CATCHTABLE_STORE_ID, "캐치테이블")
-    collected = naver_reviews + ct_reviews
+    g_reviews = _safe(google.fetch_reviews, GOOGLE_LOCATION_ID, "구글")
+    collected = naver_reviews + ct_reviews + g_reviews
 
     # 토큰은 있는데 수집이 0건이면 인증 만료 or API 변경 의심
     if not _USE_MOCK:
@@ -174,6 +178,13 @@ def collect():
             _send_slack_alert(
                 "ℹ️ *캐치테이블 수집 결과 0건* (이건 만료 알림이 *아닙니다*)\n"
                 "→ 보통은 그냥 새 리뷰가 없었던 날입니다. 만료라면 위에 🚨 알림이 따로 떴을 거예요.\n"
+                "→ 며칠 연속 0건이면 그때만 GitHub Actions 로그를 확인하세요."
+            )
+        if (os.environ.get("GOOGLE_COOKIE") or os.environ.get("GOOGLE_REFRESH_TOKEN")) \
+                and len(g_reviews) == 0:
+            _send_slack_alert(
+                "ℹ️ *구글 수집 결과 0건* (이건 만료 알림이 *아닙니다*)\n"
+                "→ 보통은 그냥 새 리뷰가 없었던 날입니다. 인증 만료라면 위에 🚨 알림이 따로 떴을 거예요.\n"
                 "→ 며칠 연속 0건이면 그때만 GitHub Actions 로그를 확인하세요."
             )
 
@@ -195,10 +206,12 @@ def collect():
 
     n_cnt = len([r for r in truly_new if r.platform == "naver"])
     ct_cnt = len([r for r in truly_new if r.platform == "catchtable"])
+    g_cnt = len([r for r in truly_new if r.platform == "google"])
     biz_start, biz_end = _biz_day_range(biz_date)
     print(f"[collect] 수집 {len(collected)}건 / 전체신규 {len(new_reviews)}건 "
           f"/ 영업일({biz_date} {biz_start:%H:%M}~{biz_end:%m/%d %H:%M}) "
-          f"pending {len(truly_new)}건 (네이버 {n_cnt}건, 캐치테이블 {ct_cnt}건)"
+          f"pending {len(truly_new)}건 "
+          f"(네이버 {n_cnt}건, 캐치테이블 {ct_cnt}건, 구글 {g_cnt}건)"
           + (" [DRY-RUN]" if _DRY_RUN else ""))
 
 

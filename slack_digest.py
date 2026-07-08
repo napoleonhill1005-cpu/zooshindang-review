@@ -4,12 +4,13 @@
   5/28(목) 리뷰현황
   네이버 14건
   캐치테이블 5점 3건
+  구글 5점 2건
 
   [네이버]
   작성자 · 리뷰 텍스트
   ...
 
-  [캐치테이블]
+  [캐치테이블] / [구글]
   ★5 · 작성자 · 리뷰 텍스트
   ...
 
@@ -38,22 +39,28 @@ def _fmt_date(d: date) -> str:
     return f"{d.month}/{d.day}({_WEEKDAYS[d.weekday()]})"
 
 
+def _rating_summary(rs: List[Review]) -> str:
+    rating_counts = Counter(
+        int(r.rating) if r.rating is not None else 0 for r in rs
+    )
+    return ", ".join(
+        f"{star}점 {cnt}건"
+        for star, cnt in sorted(rating_counts.items(), reverse=True)
+    )
+
+
 def build_blocks(reviews: List[Review], store_name: str, target_date: date) -> list:
     naver = [r for r in reviews if r.platform == "naver"]
     ct = [r for r in reviews if r.platform == "catchtable"]
+    gg = [r for r in reviews if r.platform == "google"]
 
     summary = f"*{_fmt_date(target_date)} 리뷰현황*"
     if naver:
         summary += f"\n네이버 {len(naver)}건"
     if ct:
-        rating_counts = Counter(
-            int(r.rating) if r.rating is not None else 0 for r in ct
-        )
-        ct_str = ", ".join(
-            f"{star}점 {cnt}건"
-            for star, cnt in sorted(rating_counts.items(), reverse=True)
-        )
-        summary += f"\n캐치테이블 {ct_str}"
+        summary += f"\n캐치테이블 {_rating_summary(ct)}"
+    if gg:
+        summary += f"\n구글 {_rating_summary(gg)}"
 
     blocks: list = [{"type": "section", "text": {"type": "mrkdwn", "text": summary}}]
 
@@ -76,10 +83,12 @@ def build_blocks(reviews: List[Review], store_name: str, target_date: date) -> l
             if r.photo_url:
                 blocks.append({"type": "image", "image_url": r.photo_url, "alt_text": f"{r.author} 사진"})
 
-    if ct:
+    for label, rs in (("캐치테이블", ct), ("구글", gg)):
+        if not rs:
+            continue
         blocks.append({"type": "divider"})
-        blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": "*[ 캐치테이블 ]*"}})
-        for r in ct:
+        blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": f"*[ {label} ]*"}})
+        for r in rs:
             text = " ".join(r.text.split())
             if len(text) > 300:
                 text = text[:300] + "…"
