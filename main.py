@@ -36,6 +36,7 @@ except ImportError:
 import store
 import pending
 import slack_digest
+from models import AuthError
 from fetchers import naver, catchtable, google
 
 STORE_NAME = os.environ.get("STORE_NAME", "주신당 강남점")
@@ -111,13 +112,9 @@ def _check_auth_expiry():
             # 경고 여부와 무관하게 항상 출력 — 라이브 토큰 만료일 상시 확인용
             print(f"[token] catchtable exp={exp_date} days_left={days_left:.1f}")
 
-            if days_left <= 0:
-                _send_slack_alert(
-                    f"🚨 *[진짜 만료] CATCHTABLE_TOKEN 만료됨* (만료일 {exp_date})\n"
-                    "→ 캐치테이블 리뷰 수집이 *실제로 중단*된 상태입니다.\n"
-                    "→ 관리자 페이지 새로고침으로 토큰 재캡처 후 `CATCHTABLE_TOKEN` 갱신이 *반드시* 필요합니다."
-                )
-            elif days_left <= _WARN_DAYS:
+            # 사전경고만 담당(만료 임박). 실제 만료·무효는 수집 단계의 401(auth) 경로가
+            # 정확히(조기 무효화 포함) 잡으므로 여기서 만료일 당일 알림은 내지 않는다.
+            if 0 < days_left <= _WARN_DAYS:
                 _send_slack_alert(
                     f"⏰ *[만료 임박] CATCHTABLE_TOKEN {int(days_left)}일 후 만료* (만료일 {exp_date})\n"
                     "→ 아직 수집은 정상입니다. 만료 전에 미리 토큰을 갱신해 두세요."
@@ -149,44 +146,62 @@ def _check_auth_expiry():
             pass
 
 
-def _safe(fetch, store_id, label):
+def _collect_platform(fetch, store_id, label):
+    """(reviews, status) 반환. status ∈ {ok, auth, error}.
+    - ok:    수집 성공 (0건 포함 — 그냥 리뷰 없는 날은 정상)
+    - auth:  인증 실패(401/403) → 토큰/쿠키 무효·만료
+    - error: 기타 예외 (API 구조 변경 등)"""
     try:
-        return fetch(store_id)
+        return fetch(store_id), "ok"
+    except AuthError:
+        print(f"[warn] {label} 인증 실패 (401/403)")
+        return [], "auth"
     except Exception:
         print(f"[warn] {label} 수집 실패:\n{traceback.format_exc()}")
-        return []
+        return [], "error"
+
+
+def _alert_status(label, status, cred_present, auth_hint):
+    """수집 상태에 따라 알림. 정상(0건 포함)은 무알림 — 0건을 만료로 오해하지 않게."""
+    if not cred_present:
+        return
+    if status == "auth":
+        _send_slack_alert(
+            f"🚨 *{label} 인증 무효 — 리뷰 수집 실패* (401/403)\n{auth_hint}"
+        )
+    elif status == "error":
+        _send_slack_alert(
+            f"⚠️ *{label} 수집 오류 — API 변경 의심*\n"
+            "GitHub Actions 로그를 확인하세요."
+        )
+    # status == "ok" → 무알림
 
 
 def collect():
     """08:00 KST: 신규 리뷰 수집 → seen DB 기록 → pending 저장 (Slack 미게시)."""
     _check_auth_expiry()
 
-    naver_reviews = _safe(naver.fetch_reviews, NAVER_STORE_ID, "네이버")
-    ct_reviews = _safe(catchtable.fetch_reviews, CATCHTABLE_STORE_ID, "캐치테이블")
-    g_reviews = _safe(google.fetch_reviews, GOOGLE_LOCATION_ID, "구글")
+    naver_reviews, naver_status = _collect_platform(naver.fetch_reviews, NAVER_STORE_ID, "네이버")
+    ct_reviews, ct_status = _collect_platform(catchtable.fetch_reviews, CATCHTABLE_STORE_ID, "캐치테이블")
+    g_reviews, g_status = _collect_platform(google.fetch_reviews, GOOGLE_LOCATION_ID, "구글")
     collected = naver_reviews + ct_reviews + g_reviews
 
-    # 토큰은 있는데 수집이 0건이면 인증 만료 or API 변경 의심
+    # 인증 실패(401/403)일 때만 만료 알림. '진짜 0건'(status=ok)은 조용히 넘어감.
     if not _USE_MOCK:
-        if os.environ.get("NAVER_COOKIE") and len(naver_reviews) == 0:
-            _send_slack_alert(
-                "ℹ️ *네이버 수집 결과 0건* (이건 만료 알림이 *아닙니다*)\n"
-                "→ 보통은 그냥 새 리뷰가 없었던 날입니다. 만료라면 위에 🚨 알림이 따로 떴을 거예요.\n"
-                "→ 며칠 연속 0건이면 그때만 GitHub Actions 로그를 확인하세요."
-            )
-        if os.environ.get("CATCHTABLE_TOKEN") and len(ct_reviews) == 0:
-            _send_slack_alert(
-                "ℹ️ *캐치테이블 수집 결과 0건* (이건 만료 알림이 *아닙니다*)\n"
-                "→ 보통은 그냥 새 리뷰가 없었던 날입니다. 만료라면 위에 🚨 알림이 따로 떴을 거예요.\n"
-                "→ 며칠 연속 0건이면 그때만 GitHub Actions 로그를 확인하세요."
-            )
-        if (os.environ.get("GOOGLE_COOKIE") or os.environ.get("GOOGLE_REFRESH_TOKEN")) \
-                and len(g_reviews) == 0:
-            _send_slack_alert(
-                "ℹ️ *구글 수집 결과 0건* (이건 만료 알림이 *아닙니다*)\n"
-                "→ 보통은 그냥 새 리뷰가 없었던 날입니다. 인증 만료라면 위에 🚨 알림이 따로 떴을 거예요.\n"
-                "→ 며칠 연속 0건이면 그때만 GitHub Actions 로그를 확인하세요."
-            )
+        _alert_status(
+            "캐치테이블", ct_status, bool(os.environ.get("CATCHTABLE_TOKEN")),
+            "캐치테이블 토큰은 만료일 전에도 재로그인 등으로 무효화될 수 있어요.\n"
+            "관리자 페이지 새로고침 후 새 토큰을 봇 DM에 붙여넣어 주세요."
+        )
+        _alert_status(
+            "네이버", naver_status, bool(os.environ.get("NAVER_COOKIE")),
+            "DevTools에서 쿠키 재캡처 후 봇 DM에 `네이버쿠키 <값>` 으로 붙여넣어 주세요."
+        )
+        _alert_status(
+            "구글", g_status,
+            bool(os.environ.get("GOOGLE_COOKIE") or os.environ.get("GOOGLE_REFRESH_TOKEN")),
+            "구글 인증 재설정이 필요합니다."
+        )
 
     new_reviews = store.filter_new(collected)
 

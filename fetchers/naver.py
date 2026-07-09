@@ -16,7 +16,7 @@ import requests
 from datetime import datetime, date
 from typing import List
 
-from models import Review
+from models import Review, AuthError
 
 USE_MOCK = os.environ.get("USE_MOCK", "1") == "1"
 DEBUG = os.environ.get("DEBUG_NAVER", "0") == "1"
@@ -89,6 +89,9 @@ def fetch_reviews(store_id: str) -> List[Review]:
         if resp.status_code != 429:
             break
         time.sleep(5 * (attempt + 1))
+    # 401/403 = 쿠키 만료·무효 → '진짜 0건'과 구별되도록 명시적 예외
+    if resp.status_code in (401, 403):
+        raise AuthError("naver")
     resp.raise_for_status()
     data = resp.json()
 

@@ -15,7 +15,7 @@ import requests
 from datetime import datetime
 from typing import List, Tuple
 
-from models import Review
+from models import Review, AuthError
 
 USE_MOCK = os.environ.get("USE_MOCK", "1") == "1"
 DEBUG = os.environ.get("DEBUG_CATCHTABLE", "0") == "1"
@@ -62,6 +62,9 @@ def fetch_reviews(store_id: str) -> List[Review]:
             params={"shopSeq": shop_seq, "size": _PAGE_SIZE, "page": page},
             timeout=20,
         )
+        # 401/403 = 토큰 만료·무효 → '진짜 0건'과 구별되도록 명시적 예외
+        if resp.status_code in (401, 403):
+            raise AuthError("catchtable")
         resp.raise_for_status()
         data = resp.json()
 

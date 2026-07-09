@@ -3,6 +3,11 @@ from datetime import datetime
 from typing import Optional
 
 
+class AuthError(Exception):
+    """수집기 인증 실패(HTTP 401/403). 토큰/쿠키 만료·무효 시 발생.
+    '진짜 0건(HTTP 200)'과 구별하기 위해 수집기가 명시적으로 던진다."""
+
+
 @dataclass
 class Review:
     """플랫폼 공통 리뷰 형식."""
