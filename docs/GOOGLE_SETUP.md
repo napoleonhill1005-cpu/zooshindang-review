@@ -13,8 +13,11 @@
 ## 2. Business Profile API 액세스 신청 ← 가장 오래 걸리는 단계
 구글은 이 API를 승인제로 운영한다. 승인 전에는 쿼터가 0이라 모든 호출이 403으로 실패한다.
 1. https://developers.google.com/my-business/content/prereqs 의 절차에 따라
-   [액세스 신청 폼](https://docs.google.com/forms/d/e/1FAIpQLSfC_FK2-rIDOOTGTbZfWIBoQk0DX6X63rEXGqs7-tJaAJ77Hg/viewform) 제출
+   [GBP API 문의 폼](https://support.google.com/business/contact/api_default)에서
+   **"Application for Basic API Access"** 선택 후 제출
    - 프로젝트 번호(GCP 콘솔 대시보드에서 확인), 회사/매장 정보 입력
+   - 반드시 비즈니스 프로필의 **소유자/관리자로 등록된 구글 계정**으로 제출
+   - (과거 docs.google.com 신청 폼은 폐쇄됨 — 위 문의 폼이 현행 경로)
 2. 승인 메일이 오면 (보통 1~2주) 다음 단계 진행
 
 ## 3. API 활성화
