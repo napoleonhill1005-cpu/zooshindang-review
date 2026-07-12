@@ -44,14 +44,24 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... python scripts/google_oauth_setup.
 ## 6. GitHub Secrets / 워크플로 설정
 저장소 → Settings → Secrets and variables → Actions에 등록:
 
+**Secrets** 탭에 등록:
+
 | Secret | 값 |
 |---|---|
 | `GOOGLE_CLIENT_ID` | 4단계 클라이언트 ID |
 | `GOOGLE_CLIENT_SECRET` | 4단계 클라이언트 시크릿 |
 | `GOOGLE_REFRESH_TOKEN` | 5단계 출력값 |
+| `GOOGLE_ACCOUNT_ID` | 5단계 출력값 (accounts/{숫자}의 숫자) |
 
-`GOOGLE_ACCOUNT_ID` / `GOOGLE_LOCATION_ID`는 비밀값이 아니므로
-`.github/workflows/collect.yml`의 env에 직접 기입한다 (현재 빈 값 — 5단계 출력으로 채울 것).
+**Variables** 탭에 등록 (비밀값 아님):
+
+| Variable | 값 |
+|---|---|
+| `GOOGLE_LOCATION_ID` | 5단계 출력값 (locations/{숫자}의 숫자) |
+
+워크플로(`collect.yml`)가 `secrets.*` / `vars.GOOGLE_LOCATION_ID`로 자동 주입하므로
+워크플로 파일을 직접 수정할 필요는 없다. `GOOGLE_LOCATION_ID`가 비어 있으면 구글 수집은
+조용히 스킵된다(네이버/캐치테이블은 영향 없음).
 
 ## 7. 동작 확인
 ```bash
@@ -64,3 +74,6 @@ USE_MOCK=0 DEBUG_GOOGLE=1 SLACK_DRY_RUN=1 python main.py collect
 - **invalid_grant**: refresh token 만료/회수. 4-1단계의 "프로덕션 게시" 여부 확인 후
   5단계 재실행으로 재발급.
 - **리뷰 0건인데 실제론 있음**: `GOOGLE_LOCATION_ID`가 다른 매장일 수 있음. 5단계 재실행해 확인.
+- **사진이 안 올라옴**: 리뷰 첨부 사진은 v4 `reviewMediaItems[]`에서 뽑는데, 구글이 이 필드를
+  응답에 포함하지 않는 경우가 보고돼 있다. `DEBUG_GOOGLE=1`로 실응답에 필드가 있는지 확인 —
+  없으면 API 제약이므로 텍스트·별점만 게시된다 (수집 자체는 정상).

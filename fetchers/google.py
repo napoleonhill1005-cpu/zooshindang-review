@@ -105,6 +105,20 @@ def _strip_translation(comment: str) -> str:
     return comment[:idx] if idx > 0 else comment
 
 
+def _first_photo(it: dict) -> Optional[str]:
+    """리뷰 첨부 사진의 대표 1장 URL. (reviewer.profilePhotoUrl 은 아바타이므로 쓰지 않음)
+
+    v4 리뷰 리소스의 reviewMediaItems[] 에서 thumbnailUrl 을 뽑는다.
+    단, 이 필드는 응답에 안 올 수도 있음(output only, 미제공 사례 보고됨).
+    없으면 사진 없이 텍스트·별점만 게시된다 — DEBUG_GOOGLE=1 로 실응답 확인.
+    """
+    for m in (it.get("reviewMediaItems") or []):
+        url = m.get("thumbnailUrl") or m.get("googleUrl") or m.get("sourceUrl")
+        if url:
+            return url
+    return None
+
+
 def _to_review(it: dict) -> Review:
     review_id = str(it.get("reviewId") or "")
     reviewer = it.get("reviewer") or {}
@@ -112,7 +126,8 @@ def _to_review(it: dict) -> Review:
     rating: Optional[float] = _STAR_RATING.get(it.get("starRating") or "")
     text = _strip_translation(it.get("comment") or "")
     created_at = _parse_created(it.get("createTime") or "")
-    return Review("google", review_id, author, rating, text, created_at, None, None)
+    return Review("google", review_id, author, rating, text, created_at,
+                  None, _first_photo(it))
 
 
 def _mock() -> List[Review]:
@@ -120,7 +135,8 @@ def _mock() -> List[Review]:
     return [
         Review("google", "g3001", "Soyeon K", 5.0,
                "무당집 컨셉이 정말 신선했어요. 외국인 친구 데려갔는데 너무 좋아했습니다!",
-               now - timedelta(hours=8)),
+               now - timedelta(hours=8),
+               None, "https://picsum.photos/seed/zooshindang/400/300"),
         Review("google", "g3002", "David Lee", 4.0,
                "Unique concept bar. Cocktails were creative and the vibe was great.",
                now - timedelta(hours=3)),
