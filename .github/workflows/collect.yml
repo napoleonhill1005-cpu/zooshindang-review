@@ -80,8 +80,9 @@ jobs:
           CATCHTABLE_STORE_ID: "64686"
           NAVER_COOKIE: ${{ inputs.naver_cookie != '' && inputs.naver_cookie || secrets.NAVER_COOKIE }}
           CATCHTABLE_TOKEN: ${{ inputs.catchtable_token != '' && inputs.catchtable_token || secrets.CATCHTABLE_TOKEN }}
-          # 구글 — 설정 전까지 빈 값이면 자동 스킵. F12 쿠키 방식(GOOGLE_COOKIE) 또는 공식 API(REFRESH_TOKEN)
-          GOOGLE_LOCATION_ID: ""
+          # 구글 — LOCATION_ID는 레포 Variables에 등록 (비밀값 아님). 미등록이면 빈 값 → 자동 스킵.
+          # F12 쿠키 방식(GOOGLE_COOKIE) 또는 공식 API(REFRESH_TOKEN)
+          GOOGLE_LOCATION_ID: ${{ vars.GOOGLE_LOCATION_ID }}
           GOOGLE_COOKIE: ${{ inputs.google_cookie != '' && inputs.google_cookie || secrets.GOOGLE_COOKIE }}
           GOOGLE_ACCOUNT_ID: ${{ secrets.GOOGLE_ACCOUNT_ID }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
