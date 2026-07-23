@@ -9,6 +9,7 @@
   USE_MOCK            "1"이면 mock 데이터 사용(기본), "0"이면 실제 수집기 호출
   SLACK_TOKEN         슬랙 사용자 토큰 xoxp-... (없으면 콘솔 출력 dry-run)
   SLACK_DRY_RUN       "1"이면 Slack 미게시 테스트 모드 (토큰이 있어도 콘솔만 출력)
+  ALLOW_LOCAL_RUN     "1"이면 GitHub Actions 밖에서도 실전 실행 허용 (기본: 강제 dry-run)
   SLACK_CHANNEL       게시할 채널 (기본값: #03_매장리뷰_현황)
   STORE_NAME          매장 표시 이름
   NAVER_PLACE_ID      네이버 pcmap place ID
@@ -32,6 +33,21 @@ try:
     load_dotenv()
 except ImportError:
     pass
+
+# 로컬 실수 방지 가드: GitHub Actions 밖에서 실전 모드(USE_MOCK=0)로 돌리면 강제 dry-run.
+# (2026-07-23 PC 작업 스케줄러에 남아있던 옛 사본이 낡은 토큰으로 중복 게시한 사고 재발 방지)
+# 의도적인 로컬 실전 실행은 ALLOW_LOCAL_RUN=1 로만 허용.
+# slack_digest도 import 시점에 SLACK_DRY_RUN을 읽으므로 반드시 import 전에 설정해야 한다.
+_LOCAL_GUARD = (
+    os.environ.get("USE_MOCK", "1") == "0"
+    and os.environ.get("SLACK_DRY_RUN", "0") != "1"
+    and os.environ.get("GITHUB_ACTIONS", "") != "true"
+    and os.environ.get("ALLOW_LOCAL_RUN", "0") != "1"
+)
+if _LOCAL_GUARD:
+    os.environ["SLACK_DRY_RUN"] = "1"
+    print("[guard] GitHub Actions 밖에서 실전 모드 감지 — 강제 dry-run 전환 "
+          "(슬랙 게시/알림 차단. 정말 로컬에서 실전 실행하려면 ALLOW_LOCAL_RUN=1)")
 
 import store
 import pending
@@ -79,7 +95,11 @@ def _in_biz_day(r, biz_date: date) -> bool:
 
 
 def _send_slack_alert(text: str):
-    """장애·만료 알림 전용 단순 텍스트 메시지. dry-run 여부와 무관하게 항상 전송."""
+    """장애·만료 알림 전용 단순 텍스트 메시지. dry-run 여부와 무관하게 항상 전송.
+    단, 로컬 가드 발동 시(_LOCAL_GUARD)에는 콘솔 출력만 한다."""
+    if _LOCAL_GUARD:
+        print(f"[alert/guard] {text}")
+        return
     token = os.environ.get("SLACK_TOKEN", "")
     channel = os.environ.get("SLACK_CHANNEL", "#03_매장리뷰_현황")
     if not token:

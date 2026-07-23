@@ -89,6 +89,8 @@ python check_biz.py                                # 특정 영업일 리뷰 수
 3. **리뷰 답글 기능**: 슬랙에서 이모지/버튼으로 답글 트리거
 
 ## 주의
+- **GitHub Actions 밖에서 `USE_MOCK=0` 실행 시 자동 dry-run 전환됨** (`ALLOW_LOCAL_RUN=1`로만 해제)
+  — 2026-07-23 PC 작업 스케줄러에 남아있던 옛 사본이 낡은 토큰으로 중복 게시한 사고 재발 방지 가드 (`main.py` 상단)
 - `seen_reviews.db`, `pending_reviews.json`은 커밋 금지 (`.gitignore` 등록됨)
 - 실제 Cookie/Token/Webhook URL을 코드나 커밋에 남기지 말 것
 - 응답 구조 변경 시 수집기의 **필드 매핑만** 수정 (`_to_review()` 또는 `_extract_items()`)

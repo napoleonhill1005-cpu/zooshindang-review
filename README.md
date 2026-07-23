@@ -46,20 +46,18 @@ HTML을 긁는 것보다 훨씬 안 깨진다.
 > 클로드 코드로 진행하면, 캡처한 cURL을 그대로 붙여넣고 "이걸 fetch_reviews()에 맞게 변환해줘"라고
 > 시키는 게 가장 빠르다. 응답 JSON 구조에 맞춰 필드 매핑까지 해준다.
 
-## 4) 매일 9시 자동 실행
-### A. 내 PC/서버 (권장 — DB 보존, 로그인 세션 안정적)
-- macOS/Linux cron:
-  ```
-  0 9 * * * cd /경로/review-digest && /usr/bin/python3 main.py >> log.txt 2>&1
-  ```
-  (환경변수는 스크립트 상단 `export` 또는 python-dotenv로 `.env` 로드)
-- macOS는 launchd, Windows는 작업 스케줄러도 가능
+## 4) 매일 자동 실행 (현재 운영 구조 — GitHub Actions)
+- **GAS(Google Apps Script)가 매일 08:45 KST에 `collect.yml`을 workflow_dispatch로 트리거**
+  (GitHub cron이 불안정해서 GAS가 방아쇠 역할)
+- collect 성공 시 `post.yml`이 즉시 자동 연쇄 실행 → **9시 이전 슬랙 게시 보장**
+- `watchdog.yml`(cron)이 매일 collect/post가 실제로 돌았는지 독립 점검 후 슬랙 DM 보고
+- 토큰/쿠키는 저장소 Settings → Secrets(`SLACK_TOKEN`, `NAVER_COOKIE`, `CATCHTABLE_TOKEN` 등),
+  중복제거 DB는 actions/cache로 보존
 
-### B. GitHub Actions (서버 없이)
-- `.github/workflows/daily.yml` 포함됨 (00:00 UTC = 09:00 KST)
-- 저장소 Settings → Secrets에 `SLACK_WEBHOOK_URL`, `NAVER_COOKIE`, `CATCHTABLE_COOKIE`,
-  `NAVER_STORE_ID`, `CATCHTABLE_STORE_ID` 등록
-- 중복제거 DB는 actions/cache로 보존
+> ⚠️ **로컬 PC에서 스케줄 실행 금지.** GitHub Actions 밖에서 `USE_MOCK=0`으로 실행하면
+> 자동으로 dry-run으로 전환된다(게시/알림 차단). 정말 로컬에서 실전 실행이 필요하면
+> `ALLOW_LOCAL_RUN=1`을 명시해야 한다. — 과거 PC 작업 스케줄러에 남은 옛 사본이
+> 낡은 토큰으로 중복 게시한 사고(2026-07-23)의 재발 방지 장치.
 
 ## ⚠️ 현실적인 주의점
 - **쿠키 만료**: 로그인 세션 쿠키는 일정 기간 뒤 만료된다. 만료되면 캡처를 다시 하거나,
