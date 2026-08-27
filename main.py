@@ -36,6 +36,7 @@ except ImportError:
 import store
 import pending
 import slack_digest
+import totals
 from models import AuthError
 from fetchers import naver, catchtable, google
 
@@ -219,6 +220,12 @@ def collect():
     truly_new = [r for r in biz_reviews if (r.platform, r.review_id) not in existing]
     pending.save(pending.load() + truly_new)
 
+    # 누적 통계(네이버 총 건수, 캐치테이블 총 건수·평점·5점 필요 수) → post 단계에서 게시
+    stats = totals.collect_totals(os.environ.get("NAVER_PLACE_ID", ""), CATCHTABLE_STORE_ID)
+    if stats:
+        pending.save_stats(stats)
+        print(f"[collect] 누적 통계: {stats}")
+
     n_cnt = len([r for r in truly_new if r.platform == "naver"])
     ct_cnt = len([r for r in truly_new if r.platform == "catchtable"])
     g_cnt = len([r for r in truly_new if r.platform == "google"])
@@ -233,22 +240,29 @@ def collect():
 def post():
     """09:00 KST: pending 리뷰를 Slack에 게시 후 삭제."""
     reviews = pending.load()
+    stats = pending.load_stats()  # collect 단계에서 저장한 누적 통계
     biz_date = _prev_biz_date()  # 헤더에 표시할 영업일 날짜
 
     if not reviews:
         if not _DRY_RUN:
-            _send_slack_alert(
+            alert = (
                 f"⚠️ *리뷰봇 — {biz_date} 영업일 pending 없음*\n"
                 "collect 단계 실패 또는 신규 리뷰 0건.\n"
                 "GitHub Actions `review-collect` 로그를 확인하세요."
             )
+            stat_lines = totals.stats_lines(stats)
+            if stat_lines:
+                alert += "\n\n📈 *누적 현황*\n" + "\n".join(stat_lines)
+            _send_slack_alert(alert)
+            pending.clear_stats()
         print(f"[post] pending 없음 — {biz_date} 영업일 리뷰 0건"
               + (" [DRY-RUN]" if _DRY_RUN else ""))
         return
 
-    status = slack_digest.post(reviews, STORE_NAME, biz_date)
+    status = slack_digest.post(reviews, STORE_NAME, biz_date, stats=stats)
     if not _DRY_RUN:
         pending.clear()
+        pending.clear_stats()
     print(f"[post] {len(reviews)}건 게시 / slack={status}"
           + (" (pending 유지) [DRY-RUN]" if _DRY_RUN else ""))
 

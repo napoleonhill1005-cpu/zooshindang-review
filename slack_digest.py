@@ -26,6 +26,7 @@ from datetime import date
 from typing import List
 
 from models import Review
+import totals as _totals
 
 SLACK_TOKEN = os.environ.get("SLACK_TOKEN", "")
 SLACK_CHANNEL = os.environ.get("SLACK_CHANNEL", "#03_매장리뷰_현황")
@@ -49,7 +50,8 @@ def _rating_summary(rs: List[Review]) -> str:
     )
 
 
-def build_blocks(reviews: List[Review], store_name: str, target_date: date) -> list:
+def build_blocks(reviews: List[Review], store_name: str, target_date: date,
+                 stats: dict = None) -> list:
     naver = [r for r in reviews if r.platform == "naver"]
     ct = [r for r in reviews if r.platform == "catchtable"]
     gg = [r for r in reviews if r.platform == "google"]
@@ -61,6 +63,10 @@ def build_blocks(reviews: List[Review], store_name: str, target_date: date) -> l
         summary += f"\n캐치테이블 {_rating_summary(ct)}"
     if gg:
         summary += f"\n구글 {_rating_summary(gg)}"
+
+    stat_lines = _totals.stats_lines(stats or {})
+    if stat_lines:
+        summary += "\n\n📈 *누적 현황*\n" + "\n".join(stat_lines)
 
     blocks: list = [{"type": "section", "text": {"type": "mrkdwn", "text": summary}}]
 
@@ -144,8 +150,9 @@ def _send(blocks, text: str = "") -> str:
                 raise
 
 
-def post(reviews: List[Review], store_name: str, target_date: date) -> str:
-    blocks = build_blocks(reviews, store_name, target_date)
+def post(reviews: List[Review], store_name: str, target_date: date,
+         stats: dict = None) -> str:
+    blocks = build_blocks(reviews, store_name, target_date, stats=stats)
     text = f"{_fmt_date(target_date)} 리뷰현황"
     statuses = [_send(chunk, text) for chunk in _chunk(blocks, MAX_BLOCKS_PER_MSG)]
     return ",".join(statuses)

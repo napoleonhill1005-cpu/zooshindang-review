@@ -36,7 +36,9 @@ jobs:
       # collect 워크플로우가 저장한 pending 캐시 복원 (같은 날짜 키)
       - uses: actions/cache/restore@v4
         with:
-          path: pending_reviews.json
+          path: |
+            pending_reviews.json
+            pending_stats.json
           key: review-pending-${{ steps.date.outputs.kst }}
           restore-keys: review-pending-
 

@@ -21,6 +21,7 @@ except ImportError:
     pass
 
 from fetchers import naver, catchtable
+import totals
 
 _KST = timezone(timedelta(hours=9))
 
@@ -91,6 +92,16 @@ def main():
     if naver_count >= NAVER_GOAL and ct_count >= CATCHTABLE_GOAL:
         lines.append("")
         lines.append("🎉 오늘 목표 전부 달성! 고생하셨습니다!")
+
+    # 누적 현황: 네이버 총 건수 + 캐치테이블 총 건수·평점·5점 필요 수
+    stat_lines = totals.stats_lines(
+        totals.collect_totals(NAVER_PLACE_ID, CATCHTABLE_STORE_ID)
+    )
+    if stat_lines:
+        lines.append("")
+        lines.append("📈 *누적 현황*")
+        lines.extend(stat_lines)
+
     if errors:
         lines.append("")
         lines.append(f"⚠️ {' / '.join(errors)} 수집 실패 — 해당 건수는 0으로 표시됨 (토큰 만료 의심)")

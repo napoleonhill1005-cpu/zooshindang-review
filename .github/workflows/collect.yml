@@ -88,11 +88,13 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
 
-      # pending_reviews.json: post 워크플로우와 날짜 키로 공유
+      # pending_reviews.json + pending_stats.json: post 워크플로우와 날짜 키로 공유
       - uses: actions/cache/save@v4
         if: always()
         with:
-          path: pending_reviews.json
+          path: |
+            pending_reviews.json
+            pending_stats.json
           key: review-pending-${{ steps.date.outputs.kst }}
 
       - name: 장애 알림

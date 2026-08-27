@@ -11,6 +11,7 @@ from typing import List
 from models import Review
 
 PENDING_PATH = Path(__file__).parent / "pending_reviews.json"
+STATS_PATH = Path(__file__).parent / "pending_stats.json"
 
 
 def save(reviews: List[Review]) -> None:
@@ -51,3 +52,21 @@ def load() -> List[Review]:
 
 def clear() -> None:
     PENDING_PATH.unlink(missing_ok=True)
+
+
+def save_stats(stats: dict) -> None:
+    """collect 단계에서 수집한 누적 통계(totals.collect_totals 결과)를 저장."""
+    STATS_PATH.write_text(json.dumps(stats, ensure_ascii=False), encoding="utf-8")
+
+
+def load_stats() -> dict:
+    if not STATS_PATH.exists():
+        return {}
+    try:
+        return json.loads(STATS_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def clear_stats() -> None:
+    STATS_PATH.unlink(missing_ok=True)

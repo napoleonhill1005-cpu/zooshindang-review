@@ -22,7 +22,8 @@
 | `fetchers/google.py` | ✅ 코드완성 / ⏳ **미가동** — 공식 Business Profile API(v4 `reviews`), OAuth refresh token 인증. 설정·인증 대기 (아래 "구글 연동 상태" 참고) |
 | `slack_digest.py` | ✅ 완성 — Block Kit, 50블록 청크, dry-run |
 | `store.py` | ✅ 완성 — SQLite ID 기반 중복제거 |
-| `pending.py` | ✅ 완성 — collect/post 간 `pending_reviews.json` 임시 저장 |
+| `pending.py` | ✅ 완성 — collect/post 간 `pending_reviews.json`(리뷰) + `pending_stats.json`(누적 통계) 임시 저장 |
+| `totals.py` | ✅ 완성 — 누적 통계(네이버 총 건수, 캐치테이블 총 건수·평점·표시 5.0까지 필요한 5점 수) 수집/포맷. 아침 다이제스트와 `status.py`(현황 명령) 양쪽에 표시 |
 | `main.py` | ✅ 완성 — collect/post 분리 모드, 영업일 필터링, 인증 만료 체크, 0건 알림 |
 | `alert.py` | ✅ 완성 — GitHub Actions failure 단계 장애 알림 헬퍼 |
 | `check_biz.py` | ✅ 완성 — 특정 영업일 리뷰 건수 수동 확인 스크립트 |
@@ -89,7 +90,8 @@ python check_biz.py                                # 특정 영업일 리뷰 수
 3. **리뷰 답글 기능**: 슬랙에서 이모지/버튼으로 답글 트리거
 
 ## 주의
-- `seen_reviews.db`, `pending_reviews.json`은 커밋 금지 (`.gitignore` 등록됨)
+- `seen_reviews.db`, `pending_reviews.json`, `pending_stats.json`은 커밋 금지 (`.gitignore` 등록됨)
+- '표시 평점 5.0'은 소수 첫째 자리 반올림 기준(평균 4.95 이상). 진짜 평균 5.0은 5점 아닌 리뷰가 있으면 도달 불가라 이 기준으로 계산 (`catchtable.fives_needed`)
 - 실제 Cookie/Token/Webhook URL을 코드나 커밋에 남기지 말 것
 - 응답 구조 변경 시 수집기의 **필드 매핑만** 수정 (`_to_review()` 또는 `_extract_items()`)
 - `force_post.py` 는 seen DB 무시하고 강제 게시하므로 중복 게시 주의

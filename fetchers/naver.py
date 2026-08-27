@@ -59,6 +59,25 @@ def fetch_reviews(store_id: str) -> List[Review]:
     if USE_MOCK:
         return _mock()
 
+    vr = _request_visitor_reviews(_DISPLAY)
+    items = vr.get("items") or []
+    return [_to_review(it) for it in items]
+
+
+def fetch_total(store_id: str = "") -> int:
+    """방문자 리뷰 누적 총 건수. display=1 경량 요청으로 total만 읽는다."""
+    if USE_MOCK:
+        return 128
+
+    vr = _request_visitor_reviews(1)
+    total = vr.get("total")
+    if total is None:
+        raise RuntimeError("Naver 응답에 total 필드가 없습니다.")
+    return int(total)
+
+
+def _request_visitor_reviews(display: int) -> dict:
+    """getVisitorReviews GraphQL 호출 → visitorReviews dict 반환."""
     cookie = os.environ.get("NAVER_COOKIE", "").strip()
     place_id = os.environ.get("NAVER_PLACE_ID", _DEFAULT_PLACE_ID)
 
@@ -78,7 +97,7 @@ def fetch_reviews(store_id: str) -> List[Review]:
                 "businessId": place_id,
                 "businessType": _BUSINESS_TYPE,
                 "page": 1,
-                "display": _DISPLAY,
+                "display": display,
             }
         },
         "query": _QUERY,
@@ -104,9 +123,7 @@ def fetch_reviews(store_id: str) -> List[Review]:
             f"Naver GraphQL 오류: {data['errors'][0].get('message', '')}"
         )
 
-    vr = data["data"]["visitorReviews"]
-    items = (vr or {}).get("items") or []
-    return [_to_review(it) for it in items]
+    return data["data"]["visitorReviews"] or {}
 
 
 def _parse_created(raw: str) -> datetime:
