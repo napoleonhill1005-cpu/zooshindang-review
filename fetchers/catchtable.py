@@ -25,7 +25,7 @@ _API_BASE = "https://biz-api.catchtable.co.kr/manager-api/review/api/v1"
 _DEFAULT_SHOP_SEQ = "64686"
 _PAGE_SIZE = 50
 _MAX_PAGES = 3
-_MAX_STATS_PAGES = 40  # 누적 통계용 전체 페이징 안전 상한 (50건 × 40 = 2,000건)
+_MAX_STATS_PAGES = 80  # 누적 통계용 전체 페이징 안전 상한 (50건 × 80 = 4,000건, 현재 누적 약 2,600건)
 
 # 소수 첫째 자리 반올림 표시가 5.0이 되는 최소 평균.
 # 진짜 평균 5.0은 5점 아닌 리뷰가 하나라도 있으면 수학적으로 도달 불가이므로
