@@ -93,10 +93,10 @@ def main():
         lines.append("")
         lines.append("🎉 오늘 목표 전부 달성! 고생하셨습니다!")
 
-    # 누적 현황: 네이버 총 건수 + 캐치테이블 총 건수·평점·5점 필요 수
-    stat_lines = totals.stats_lines(
-        totals.collect_totals(NAVER_PLACE_ID, CATCHTABLE_STORE_ID)
-    )
+    # 누적 현황: 총 건수·평점 + 주간/월간 증가량 + 다음 목표
+    stats = totals.collect_totals(NAVER_PLACE_ID, CATCHTABLE_STORE_ID)
+    totals.attach_periods(stats)  # 스냅샷 기록은 아침 collect만 담당 (여기선 조회만)
+    stat_lines = totals.stats_lines(stats)
     if stat_lines:
         lines.append("")
         lines.append("📈 *누적 현황*")

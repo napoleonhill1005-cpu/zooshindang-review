@@ -21,9 +21,9 @@
 | `fetchers/catchtable.py` | ✅ 완성 — REST `/manager-api/review/api/v1/reviews`, 최대 3페이지, `CATCHTABLE_TOKEN` Bearer 인증 |
 | `fetchers/google.py` | ✅ 코드완성 / ⏳ **미가동** — 공식 Business Profile API(v4 `reviews`), OAuth refresh token 인증. 설정·인증 대기 (아래 "구글 연동 상태" 참고) |
 | `slack_digest.py` | ✅ 완성 — Block Kit, 50블록 청크, dry-run |
-| `store.py` | ✅ 완성 — SQLite ID 기반 중복제거 |
+| `store.py` | ✅ 완성 — SQLite ID 기반 중복제거 + `totals_history` 일자별 누적 스냅샷(주간/월간 증가량용) |
 | `pending.py` | ✅ 완성 — collect/post 간 `pending_reviews.json`(리뷰) + `pending_stats.json`(누적 통계) 임시 저장 |
-| `totals.py` | ✅ 완성 — 누적 통계(네이버 총 건수, 캐치테이블 총 건수·평점·표시 5.0까지 필요한 5점 수) 수집/포맷. 아침 다이제스트와 `status.py`(현황 명령) 양쪽에 표시 |
+| `totals.py` | ✅ 완성 — 누적 통계(네이버 총 건수, 캐치테이블 총 건수·평점·표시 5.0까지 필요한 5점 수) + 이번 주/이번 달/지난 달 증가량("7,289 → 7,400개 (+111)") + 🎯 다음 목표(네이버 100건 단위 마일스톤, 캐치테이블 5.0). 아침 다이제스트와 `status.py`(현황 명령) 양쪽에 표시. 스냅샷 기록은 아침 collect만(`attach_periods(record=True)`), 현황은 조회 전용 |
 | `main.py` | ✅ 완성 — collect/post 분리 모드, 영업일 필터링, 인증 만료 체크, 0건 알림 |
 | `alert.py` | ✅ 완성 — GitHub Actions failure 단계 장애 알림 헬퍼 |
 | `check_biz.py` | ✅ 완성 — 특정 영업일 리뷰 건수 수동 확인 스크립트 |

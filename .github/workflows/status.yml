@@ -35,6 +35,13 @@ jobs:
           CT: ${{ inputs.catchtable_token }}
           NV: ${{ inputs.naver_cookie }}
 
+      # 주간/월간 증가량 계산용 totals 히스토리(seen_reviews.db) 복원 — 조회 전용
+      - uses: actions/cache/restore@v4
+        with:
+          path: seen_reviews.db
+          key: review-seen-db-${{ github.run_id }}
+          restore-keys: review-seen-db-
+
       - name: 오늘 리뷰 현황 집계 + Slack 게시
         run: python status.py
         env:

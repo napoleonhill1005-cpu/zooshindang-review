@@ -221,8 +221,10 @@ def collect():
     pending.save(pending.load() + truly_new)
 
     # 누적 통계(네이버 총 건수, 캐치테이블 총 건수·평점·5점 필요 수) → post 단계에서 게시
+    # record=True: 오늘 스냅샷을 totals_history에 기록해 주간/월간 증가량 계산에 사용
     stats = totals.collect_totals(os.environ.get("NAVER_PLACE_ID", ""), CATCHTABLE_STORE_ID)
     if stats:
+        totals.attach_periods(stats, record=True)
         pending.save_stats(stats)
         print(f"[collect] 누적 통계: {stats}")
 
