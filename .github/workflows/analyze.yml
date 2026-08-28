@@ -1,0 +1,35 @@
+name: review-analyze
+
+# 일회성 분석용 (수동 실행 전용) — 캐치테이블 표시 평점 윈도우 역추적 등
+on:
+  workflow_dispatch:
+    inputs:
+      catchtable_token:
+        description: '캐치테이블 토큰 (비우면 Secret 사용)'
+        required: false
+        default: ''
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      # 주입된 토큰이 이후 로그에 노출되지 않도록 마스킹
+      - name: 주입 토큰 마스킹
+        run: '[ -n "$CT" ] && echo "::add-mask::$CT" || true'
+        env:
+          CT: ${{ inputs.catchtable_token }}
+
+      - name: 표시 평점 윈도우 분석
+        run: python scripts/analyze_rating_window.py
+        env:
+          USE_MOCK: "0"
+          CATCHTABLE_STORE_ID: "64686"
+          CATCHTABLE_TOKEN: ${{ inputs.catchtable_token != '' && inputs.catchtable_token || secrets.CATCHTABLE_TOKEN }}
