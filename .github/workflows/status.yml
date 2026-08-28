@@ -4,6 +4,10 @@ on:
   # 슬랙 리뷰 채널에서 "현황" 입력 시 GAS가 workflow_dispatch로 호출
   workflow_dispatch:
     inputs:
+      dry_run:
+        description: 'Slack 미게시 테스트 모드 (체크하면 콘솔 출력만)'
+        type: boolean
+        default: false
       # GAS가 Script Property의 토큰을 주입 (비우면 아래 env가 Secret으로 폴백)
       catchtable_token:
         description: '캐치테이블 토큰 (GAS 주입용, 비우면 Secret 사용)'
@@ -46,6 +50,7 @@ jobs:
         run: python status.py
         env:
           USE_MOCK: "0"
+          SLACK_DRY_RUN: ${{ inputs.dry_run == true && '1' || '0' }}
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           SLACK_CHANNEL: "#03_매장리뷰_현황"
           NAVER_PLACE_ID: "1916994932"
