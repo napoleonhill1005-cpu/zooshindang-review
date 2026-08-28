@@ -8,6 +8,10 @@ on:
         description: 'Slack 미게시 테스트 모드 (체크하면 콘솔 출력만)'
         type: boolean
         default: false
+      analyze:
+        description: '(임시) 표시 평점 윈도우 분석 스크립트 실행 (현황 집계 대신)'
+        type: boolean
+        default: false
       # GAS가 Script Property의 토큰을 주입 (비우면 아래 env가 Secret으로 폴백)
       catchtable_token:
         description: '캐치테이블 토큰 (GAS 주입용, 비우면 Secret 사용)'
@@ -46,7 +50,16 @@ jobs:
           key: review-seen-db-${{ github.run_id }}
           restore-keys: review-seen-db-
 
+      - name: 표시 평점 윈도우 분석 (일회성, analyze 입력 시)
+        if: ${{ inputs.analyze == true }}
+        run: python scripts/analyze_rating_window.py
+        env:
+          USE_MOCK: "0"
+          CATCHTABLE_STORE_ID: "64686"
+          CATCHTABLE_TOKEN: ${{ inputs.catchtable_token != '' && inputs.catchtable_token || secrets.CATCHTABLE_TOKEN }}
+
       - name: 오늘 리뷰 현황 집계 + Slack 게시
+        if: ${{ inputs.analyze != true }}
         run: python status.py
         env:
           USE_MOCK: "0"
