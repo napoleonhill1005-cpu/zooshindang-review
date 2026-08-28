@@ -92,13 +92,20 @@ def fetch_reviews(store_id: str) -> List[Review]:
     return [_to_review(it) for it in all_items]
 
 
+def _effective_score(score: float) -> float:
+    """캐치테이블 판정 기준 점수: 0.5점 단위 리뷰를 반올림한다 (후한 시스템).
+    4.5점 리뷰 = 5점, 3.5점 = 4점으로 취급."""
+    return float(math.floor(score + 0.5))
+
+
 def fetch_stats(store_id: str = "") -> dict:
     """누적 리뷰 통계: 전체 페이지를 돌며 총 건수·평점 합계를 집계한다.
 
-    반환: {"total": 총건수, "rated": 별점있는건수, "score_sum": 별점합, "avg": 평균(둘째자리)}
+    점수는 _effective_score()로 반올림한 판정 점수 기준 (4.5점 리뷰 = 5점).
+    반환: {"total": 총건수, "rated": 별점있는건수, "score_sum": 판정점수합, "avg": 평균(둘째자리)}
     """
     if USE_MOCK:
-        return {"total": 231, "rated": 231, "score_sum": 1113.4, "avg": 4.82}
+        return {"total": 231, "rated": 231, "score_sum": 1113.0, "avg": 4.82}
 
     session, shop_seq = _session_and_shop(store_id)
 
@@ -123,7 +130,7 @@ def fetch_stats(store_id: str = "") -> dict:
             score = it.get("totalScore")
             if score is not None:
                 rated += 1
-                score_sum += float(score)
+                score_sum += _effective_score(float(score))
         if not has_next or not items:
             break
 

@@ -17,6 +17,7 @@
 SLACK_TOKEN 환경변수가 없거나 SLACK_DRY_RUN=1 이면 콘솔에만 출력한다.
 """
 import json
+import math
 import os
 import time
 import urllib.error
@@ -41,8 +42,9 @@ def _fmt_date(d: date) -> str:
 
 
 def _rating_summary(rs: List[Review]) -> str:
+    # 캐치테이블 판정 기준(0.5점 단위 반올림)과 동일하게 4.5점 리뷰는 5점으로 집계
     rating_counts = Counter(
-        int(r.rating) if r.rating is not None else 0 for r in rs
+        math.floor(r.rating + 0.5) if r.rating is not None else 0 for r in rs
     )
     return ", ".join(
         f"{star}점 {cnt}건"
@@ -98,7 +100,8 @@ def build_blocks(reviews: List[Review], store_name: str, target_date: date,
             text = " ".join(r.text.split())
             if len(text) > 300:
                 text = text[:300] + "…"
-            star = f"★{int(r.rating)}" if r.rating is not None else ""
+            # 개별 리뷰는 원점수 그대로 표시 (★4.5), 요약 집계만 반올림 판정
+            star = f"★{r.rating:g}" if r.rating is not None else ""
             prefix = f"{star} _{r.author}_" if star else f"_{r.author}_"
             body = f"{prefix}\n{text}" if text else f"{prefix} (내용 없음)"
             blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": body}})

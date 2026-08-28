@@ -91,6 +91,8 @@ python check_biz.py                                # 특정 영업일 리뷰 수
 
 ## 주의
 - `seen_reviews.db`, `pending_reviews.json`, `pending_stats.json`은 커밋 금지 (`.gitignore` 등록됨)
+- 캐치테이블 점수 판정: 리뷰는 0.5점 단위(1.0, 1.5, …)인데 시스템이 반올림해 후하게 판정 →
+  **4.5점 리뷰 = 5점 취급** (`catchtable._effective_score`). 누적 평점·5점 필요 수·다이제스트 별점 집계 모두 이 판정 점수 기준
 - '표시 평점 5.0'은 소수 첫째 자리 반올림 기준(평균 4.95 이상). 진짜 평균 5.0은 5점 아닌 리뷰가 있으면 도달 불가라 이 기준으로 계산 (`catchtable.fives_needed`)
 - 실제 Cookie/Token/Webhook URL을 코드나 커밋에 남기지 말 것
 - 응답 구조 변경 시 수집기의 **필드 매핑만** 수정 (`_to_review()` 또는 `_extract_items()`)
